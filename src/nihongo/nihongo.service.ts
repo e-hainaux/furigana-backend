@@ -14,15 +14,20 @@ export class NihongoService implements OnModuleInit {
   async convertToFurigana(
     text: string,
     to: 'furigana' | 'hiragana' | 'romaji' = 'furigana',
+    position: 'above' | 'below' = 'above',
   ): Promise<string> {
     try {
-      console.log('text : ', text);
       const result = await this.kuroshiro.convert(text, {
         to: to,
         mode: 'furigana',
       });
-      console.log('result : ', result);
 
+      if (position === 'below') {
+        return result.replace(
+          /<ruby>(.*?)<rt>(.*?)<\/rt><\/ruby>/g,
+          '<ruby>$1<rp>(</rp><rt>$2</rt><rp>)</rp></ruby>',
+        );
+      }
       return result;
     } catch (error) {
       console.error('Error converting text:', error);
