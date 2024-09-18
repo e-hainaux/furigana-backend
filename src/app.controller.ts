@@ -12,8 +12,13 @@ export class AppController {
 
   @Get('favicon.ico')
   @Header('Content-Type', 'image/x-icon')
-  getFavicon() {
-    // Retourne une réponse vide pour éviter l'erreur 500
+  getFaviconIco() {
+    return '';
+  }
+
+  @Get('favicon.png')
+  @Header('Content-Type', 'image/png')
+  getFaviconPng() {
     return '';
   }
 }
