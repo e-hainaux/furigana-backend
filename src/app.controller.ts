@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Header } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
@@ -8,5 +8,12 @@ export class AppController {
   @Get()
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('favicon.ico')
+  @Header('Content-Type', 'image/x-icon')
+  getFavicon() {
+    // Retourne une réponse vide pour éviter l'erreur 500
+    return '';
   }
 }
