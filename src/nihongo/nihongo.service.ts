@@ -1,15 +1,30 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import Kuroshiro from 'kuroshiro';
-import * as KuromojiAnalyzer from 'kuroshiro-analyzer-kuromoji';
+import * as kuromoji from 'kuromoji';
+// import Kuroshiro from 'kuroshiro';
+// import * as KuromojiAnalyzer from 'kuroshiro-analyzer-kuromoji';
+// const KuromojiAnalyzer = require('kuroshiro-analyzer-kuromoji').default;
 
 @Injectable()
 export class NihongoService implements OnModuleInit {
-  private kuroshiro: Kuroshiro;
-
+  private analyzer: any;
   async onModuleInit() {
-    this.kuroshiro = new Kuroshiro();
-    await this.kuroshiro.init(new KuromojiAnalyzer());
+    this.analyzer = await new Promise((resolve, reject) => {
+      kuromoji
+        .builder({ dicPath: 'node_modules/kuromoji/dict' })
+        .build((err, analyzer) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(analyzer);
+          }
+        });
+    });
   }
+  // private kuroshiro: Kuroshiro;
+  // async onModuleInit() {
+  //   this.kuroshiro = new Kuroshiro();
+  //   await this.kuroshiro.init(new KuromojiAnalyzer());
+  // }
 
   async convertToFurigana(
     text: string,
