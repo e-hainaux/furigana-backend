@@ -29,9 +29,11 @@ export class NihongoService implements OnModuleInit {
         to: to,
         mode: 'furigana',
       });
+      console.log('Result :', result);
 
       // Step 2: Correct furigana IF AI validation is asked
       if (validateWithAI) {
+        console.log('Validation avec IA activée');
         result = await this.validateFuriganaWithAI(text, result);
       }
 
@@ -54,27 +56,48 @@ export class NihongoService implements OnModuleInit {
     kuroshiroResult: string,
   ): Promise<string> {
     try {
+      console.log('Résultat brut Kuroshiro:', kuroshiroResult);
+      console.log(
+        'Test sur kuroshiroResult:',
+        this.extractKanjiFuriganaPairs(kuroshiroResult),
+      );
+
+      const testString =
+        '<ruby>日本<rt>にほん</rt></ruby>の<ruby>文化<rt>ぶんか</rt></ruby>';
+      console.log(
+        'Test de extractKanjiFuriganaPairs:',
+        this.extractKanjiFuriganaPairs(testString),
+      );
+
       const pairs = this.extractKanjiFuriganaPairs(kuroshiroResult);
+      console.log('Paires kanji-furigana envoyées à l’IA:', pairs);
 
       if (pairs.length === 0) {
         return kuroshiroResult;
       }
 
       const huggingFacePrompt = `
-以下の日本語の文章と生成されたフリガナを確認してください。
-間違っているフリガナを修正してください。
+以下の日本語の文章とフリガナを確認してください。
+間違っているフリガナのみを修正し、正しいものだけを返してください。
 
-元の文章: ${originalText}
+元の文章:
+${originalText}
 
-フリガナ:
+フリガナ一覧:
 ${pairs.map((p) => `${p.kanji} → ${p.furigana}`).join('\n')}
 
-修正したフリガナのみを次の形式で返してください:
-kanji1:furigana1
-kanji2:furigana2
-...`;
+**修正が必要な場合のみ**、次のJSON形式で返してください:
+{
+  "kanji1": "修正後のフリガナ",
+  "kanji2": "修正後のフリガナ"
+}
+
+**注意**:
+- 間違っていないフリガナは含めないでください。
+- JSON形式を厳守してください。`;
 
       // Call Hugging Face API
+      console.log('Envoi à Hugging Face:', huggingFacePrompt);
       const response = await this.hf.textGeneration({
         model: 'rinna/japanese-gpt-neox-3.6b',
         inputs: huggingFacePrompt,
@@ -84,15 +107,24 @@ kanji2:furigana2
           return_full_text: false,
         },
       });
+      console.log('Réponse de Hugging Face:', response);
 
-      const corrections = this.parseAIResponse(response.generated_text);
+      let corrections = {};
+      try {
+        corrections = JSON.parse(response.generated_text);
+      } catch (error) {
+        console.error('Erreur lors du parsing JSON:', error);
+      }
 
       let correctedText = kuroshiroResult;
       for (const [kanji, correctedFurigana] of Object.entries(corrections)) {
-        const regex = new RegExp(`<ruby>${kanji}<rt>(.*?)</rt></ruby>`, 'g');
+        const regex = new RegExp(
+          `<ruby>${kanji}<rp>.*?</rp><rt>(.*?)</rt><rp>.*?</rp></ruby>`,
+          'g',
+        );
         correctedText = correctedText.replace(
           regex,
-          `<ruby>${kanji}<rt>${correctedFurigana}</rt></ruby>`,
+          `<ruby>${kanji}<rp>(</rp><rt>${correctedFurigana}</rt><rp>)</rp></ruby>`,
         );
       }
 
@@ -107,7 +139,9 @@ kanji2:furigana2
     html: string,
   ): Array<{ kanji: string; furigana: string }> {
     const pairs = [];
-    const regex = /<ruby>(.*?)<rt>(.*?)<\/rt><\/ruby>/g;
+
+    const regex =
+      /<ruby>(.*?)<rp>.*?<\/rp><rt>(.*?)<\/rt><rp>.*?<\/rp><\/ruby>/g;
     let match;
 
     while ((match = regex.exec(html)) !== null) {
